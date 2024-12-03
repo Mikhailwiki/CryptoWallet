@@ -1,0 +1,6 @@
+fake-useragent==1.5.1
+pillow==11.0.0
+pyperclip==1.9.0
+PyQt6==6.7.1
+requests==2.32.3
+prettytable==3.12.0
