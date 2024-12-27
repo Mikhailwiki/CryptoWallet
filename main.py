@@ -2,22 +2,22 @@ import sqlite3
 import hashlib
 import sys
 import os
-import io
 
 import pyperclip
 import requests
 import secrets
 from prettytable import PrettyTable
 
-from CONSTS import SPECIAL_CHARACTERS, SEND_TO_ADDRESS_UI, USER_WALLET, GET_ADDRESS_UI, LOGS
+from app.CONSTS import SPECIAL_CHARACTERS
 
-from PyQt6 import uic
-from PyQt6.QtWidgets import QMainWindow, QApplication, QLabel, QMessageBox, QPushButton
-from PyQt6.QtGui import QPixmap, QImage, QPalette, QColor, QIcon, QTransform, QFont
+from app.gui.registration_form import UiRegistrationForm
+from app.gui.send_form import UiSendForm
+from app.gui.user_address import UiUsersAddress
+from app.gui.users_wallet import UiUsersWallet
+
+from PyQt6.QtWidgets import QMainWindow, QApplication, QMessageBox
+from PyQt6.QtGui import QPalette, QColor, QIcon, QTransform, QFont
 from PyQt6.QtCore import Qt
-
-from PIL import Image
-from io import BytesIO
 
 from fake_useragent import UserAgent
 
@@ -239,13 +239,10 @@ def add_address(user_id):
         return address[0]
 
 
-class LogUsers(QMainWindow):
+class LogUsers(QMainWindow, UiRegistrationForm):
     def __init__(self):
         super().__init__()
-        f = io.StringIO(LOGS)
-        uic.loadUi(f, self)
-
-        self.load_background_image()
+        self.setupUi(self)
 
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
 
@@ -271,7 +268,6 @@ class LogUsers(QMainWindow):
                 if input_hash == password_hash:
                     self.result.setText('Login successful')
                     self.create_new_wallet(get_user_id(username))
-                    # self.close()
                 else:
                     self.result.setText('Incorrect password')
         else:
@@ -288,7 +284,7 @@ class LogUsers(QMainWindow):
         if not username:
             self.result.setText('Wrong login')
         if not is_username_exists(username):
-            if is_password_correct(password) == True:
+            if is_password_correct(password) is True:
                 with sqlite3.connect('data/users.db') as db:
                     cursor = db.cursor()
                     salt = os.urandom(16).hex()
@@ -314,33 +310,17 @@ class LogUsers(QMainWindow):
         self.log_btn.setPalette(palette)
         self.sign_btn.setPalette(palette)
 
-    def load_background_image(self):
-        self.background_label = self.findChild(QLabel, 'background_label')
-        try:
-            with open('images/background.jpg', 'rb') as f:
-                data = f.read()
-            image = Image.open(BytesIO(data))
-            image_data = image.tobytes("raw", "RGBA")
-            q_image = QImage(image_data, image.size[0], image.size[1], QImage.Format.Format_RGBA8888)
-            pixmap = QPixmap.fromImage(q_image)
-            self.background_label.setPixmap(pixmap)
-            self.background_label.setScaledContents(True)
-        except Exception as e:
-            print(f"Error loading background image: {e}")
 
-
-class UserWallet(QMainWindow):
+class UserWallet(QMainWindow, UiUsersWallet):
     def __init__(self, user_id):
         super().__init__()
-        f = io.StringIO(USER_WALLET)
-        uic.loadUi(f, self)
+        self.setupUi(self)
 
         self.user_id = user_id
         self.address = add_address(user_id)
         self.get_addresses = []
         self.send_to_addresses = []
 
-        self.load_fronted()
         self.colors()
 
         self.update_balance()
@@ -404,8 +384,8 @@ class UserWallet(QMainWindow):
         balance.sort(key=lambda x: -x[1])
 
         self.listWidget.clear()
-        for currenc, amount in balance:
-            self.listWidget.addItem(f'{currenc}: {amount}')
+        for currency, amount in balance:
+            self.listWidget.addItem(f'{currency}: {amount}')
 
         data = exchange_rate()
         if data is not None:
@@ -415,93 +395,6 @@ class UserWallet(QMainWindow):
             self.excange_rate.setText(rates)
         else:
             self.excange_rate.setText('Error, try again later')
-
-    def load_fronted(self):
-        self.background_label = self.findChild(QLabel, 'background_label')
-        try:
-            with open('images/background2.jpg', 'rb') as f:
-                data = f.read()
-            image = Image.open(BytesIO(data))
-            image_data = image.tobytes("raw", "RGBA")
-            q_image = QImage(image_data, image.size[0], image.size[1], QImage.Format.Format_RGBA8888)
-            pixmap = QPixmap.fromImage(q_image)
-            self.background_label.setPixmap(pixmap)
-            self.background_label.setScaledContents(True)
-
-            with open('images/temp_background.jpg', 'wb') as f:
-                f.write(data)
-
-            self.listWidget.setStyleSheet(f"""
-                        QListWidget {{
-                            background-image: url(images/temp_background.jpg);
-                            background-repeat: no-repeat;
-                            background-position: center;
-                            background-size: cover;  /* Растягиваем изображение на весь фон */
-                            border: 1px solid #d0d0d0;
-                        }}
-                        QListWidget::item {{
-                            background-color: rgba(255, 255, 255, 128);
-                            border-bottom: 1px solid #d0d0d0;
-                        }}
-                        QListWidget::item:selected {{
-                            background-color: rgba(160, 160, 160, 128);
-                            color: #ffffff;
-                        }}
-                    """)
-
-            self.update_btn.setStyleSheet("""
-                        QPushButton {
-                            font-size: 24px;  /* Устанавливаем размер текста */
-                            color: #ffffff;  /* Устанавливаем цвет текста */
-                            background-color: #4CAF50;  /* Устанавливаем цвет фона */
-                            border: 2px solid #4CAF50;  /* Устанавливаем границу */
-                            border-radius: 10px;  /* Устанавливаем скругление углов */
-                        }
-                        QPushButton:hover {
-                            background-color: #45a049;  /* Изменяем цвет фона при наведении */
-                        }
-                    """)
-
-            self.send_btn.setStyleSheet("""
-                            QPushButton {
-                                font-size: 24px;  /* Устанавливаем размер текста */
-                                color: #ffffff;  /* Устанавливаем цвет текста */
-                                background-color: #4CAF50;  /* Устанавливаем цвет фона */
-                                border: 2px solid #4CAF50;  /* Устанавливаем границу */
-                                border-radius: 10px;  /* Устанавливаем скругление углов */
-                            }
-                            QPushButton:hover {
-                                background-color: #45a049;  /* Изменяем цвет фона при наведении */
-                            }
-                        """)
-
-            self.get_btn.setStyleSheet("""
-                            QPushButton {
-                                font-size: 24px;  /* Устанавливаем размер текста */
-                                color: #ffffff;  /* Устанавливаем цвет текста */
-                                background-color: #4CAF50;  /* Устанавливаем цвет фона */
-                                border: 2px solid #4CAF50;  /* Устанавливаем границу */
-                                border-radius: 10px;  /* Устанавливаем скругление углов */
-                            }
-                            QPushButton:hover {
-                                background-color: #45a049;  /* Изменяем цвет фона при наведении */
-                            }
-                        """)
-
-            self.delete_btn.setStyleSheet("""
-                            QPushButton {
-                                font-size: 24px;  /* Устанавливаем размер текста */
-                                color: #ffffff;  /* Устанавливаем цвет текста */
-                                background-color: #4CAF50;  /* Устанавливаем цвет фона */
-                                border: 2px solid #4CAF50;  /* Устанавливаем границу */
-                                border-radius: 10px;  /* Устанавливаем скругление углов */
-                            }
-                            QPushButton:hover {
-                                background-color: #45a049;  /* Изменяем цвет фона при наведении */
-                            }
-                        """)
-        except Exception as e:
-            print(f"Error loading frontend: {e}")
 
     def colors(self):
         palette = QPalette()
@@ -513,16 +406,14 @@ class UserWallet(QMainWindow):
         self.excange_rate.setPalette(palette)
 
 
-class GetAddress(QMainWindow):
+class GetAddress(QMainWindow, UiUsersAddress):
     def __init__(self, address):
         super().__init__()
-        f = io.StringIO(GET_ADDRESS_UI)
-        uic.loadUi(f, self)
+        self.setupUi(self)
         self.lineEdit.setText(str(address))
         self.address = address
         self.lineEdit.setEnabled(False)
 
-        self.load_fronted()
         self.pushButton.setIcon(QIcon('images/clone.png'))
 
         self.pushButton.clicked.connect(self.copy)
@@ -532,30 +423,11 @@ class GetAddress(QMainWindow):
     def copy(self):
         pyperclip.copy(self.address)
 
-    def load_fronted(self):
-        self.background_label = self.findChild(QLabel, 'background_label')
-        with open('images/background2.jpg', 'rb') as f:
-            data = f.read()
-        image = Image.open(BytesIO(data))
-        image_data = image.tobytes("raw", "RGBA")
-        q_image = QImage(image_data, image.size[0], image.size[1], QImage.Format.Format_RGBA8888)
-        pixmap = QPixmap.fromImage(q_image)
-        self.background_label.setPixmap(pixmap)
-        self.background_label.setScaledContents(True)
 
-        palette = QPalette()
-
-        palette.setColor(QPalette.ColorRole.WindowText, QColor(255, 255, 255))
-
-        self.label.setPalette(palette)
-
-
-class SendToAddress(QMainWindow):
+class SendToAddress(QMainWindow, UiSendForm):
     def __init__(self, user_id, currency):
         super().__init__()
-        f = io.StringIO(SEND_TO_ADDRESS_UI)
-        uic.loadUi(f, self)
-        self.load_fronted()
+        self.setupUi(self)
         self.user_id = user_id
         self.currency = currency
 
@@ -564,7 +436,7 @@ class SendToAddress(QMainWindow):
         self.send_btn.clicked.connect(self.send)
 
     def send(self):
-        if self.currency == []:
+        if not self.currency:
             self.result.setText('Cryptocurrency not selected')
             return
 
@@ -591,38 +463,6 @@ class SendToAddress(QMainWindow):
                 add_currency(result[0], crypto, self.amount.value())
                 subtract_currency(self.user_id, crypto, float(self.amount.value()))
                 self.result.setText('Transaction completed')
-
-    def load_fronted(self):
-        self.background_label = self.findChild(QLabel, 'background_label')
-        with open('images/background2.jpg', 'rb') as f:
-            data = f.read()
-        image = Image.open(BytesIO(data))
-        image_data = image.tobytes("raw", "RGBA")
-        q_image = QImage(image_data, image.size[0], image.size[1], QImage.Format.Format_RGBA8888)
-        pixmap = QPixmap.fromImage(q_image)
-        self.background_label.setPixmap(pixmap)
-        self.background_label.setScaledContents(True)
-
-        self.send_btn.setStyleSheet("""
-                                    QPushButton {
-                                        font-size: 24px;  /* Устанавливаем размер текста */
-                                        color: #ffffff;  /* Устанавливаем цвет текста */
-                                        background-color: #4CAF50;  /* Устанавливаем цвет фона */
-                                        border: 2px solid #4CAF50;  /* Устанавливаем границу */
-                                        border-radius: 10px;  /* Устанавливаем скругление углов */
-                                    }
-                                    QPushButton:hover {
-                                        background-color: #45a049;  /* Изменяем цвет фона при наведении */
-                                    }
-                                """)
-
-        palette = QPalette()
-
-        palette.setColor(QPalette.ColorRole.WindowText, QColor(255, 255, 255))
-
-        self.label.setPalette(palette)
-        self.label_2.setPalette(palette)
-        self.result.setPalette(palette)
 
 
 if __name__ == '__main__':
