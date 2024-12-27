@@ -344,6 +344,8 @@ class UserWallet(QMainWindow, UiUsersWallet):
 
         self.username_login()
 
+        self.last_rate = 'Error, try again later'
+
     def username_login(self):
         with sqlite3.connect('data/users.db') as db:
             cursor = db.cursor()
@@ -393,8 +395,9 @@ class UserWallet(QMainWindow, UiUsersWallet):
             for i in data:
                 rates += f'{i}: {data[i]["usd"]} usd\n'
             self.excange_rate.setText(rates)
+            self.last_rate = rates
         else:
-            self.excange_rate.setText('Error, try again later')
+            self.excange_rate.setText(self.last_rate)
 
     def colors(self):
         palette = QPalette()
